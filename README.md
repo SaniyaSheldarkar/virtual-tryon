@@ -1,17 +1,28 @@
-# 👗 Virtual Try-On Studio
+# Virtual Try-On Studio
 
-A full-stack web application that lets users upload a person photo and a clothing image, then generates a virtual try-on result using AI (or a built-in mock renderer).
+A full-stack web application that allows users to upload a person photo and a clothing image and receive an AI-generated virtual try-on result.
 
 ---
 
 ## Tech Stack
 
-| Layer     | Technology              |
-|-----------|-------------------------|
-| Backend   | Python · FastAPI        |
-| Frontend  | React 18 · Vite         |
-| AI (real) | Google Gemini API       |
-| AI (mock) | Pillow image compositing|
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, Vite, Plain CSS |
+| Backend | Python, FastAPI, Uvicorn |
+| AI Model | IDM-VTON on Replicate |
+| Fallback | Pillow image compositor |
+
+---
+
+## AI Model
+
+**IDM-VTON** (Improving Diffusion Models for Authentic Virtual Try-on in the Wild)
+- Hosted on Replicate.com
+- Model ID: `cuuupid/idm-vton`
+- Type: Diffusion Model
+- Input: Person image + Clothing image
+- Output: AI-generated try-on image
 
 ---
 
@@ -20,129 +31,91 @@ A full-stack web application that lets users upload a person photo and a clothin
 ```
 virtual-tryon/
 ├── backend/
-│   ├── main.py          ← FastAPI app (all API logic)
+│   ├── main.py              ← FastAPI app (all backend logic)
 │   ├── requirements.txt
-│   └── uploads/         ← temp storage (auto-created)
-├── frontend/
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js
-│   └── src/
-│       ├── main.jsx
-│       ├── App.jsx      ← main page
-│       ├── index.css    ← all styles
-│       └── components/
-│           ├── ImageUploadZone.jsx
-│           └── ResultPanel.jsx
-└── README.md
+│   └── uploads/             ← temporary image storage (auto-created)
+└── frontend/
+    ├── index.html
+    ├── package.json
+    ├── vite.config.js
+    └── src/
+        ├── main.jsx
+        ├── App.jsx
+        ├── index.css
+        └── components/
+            ├── ImageUploadZone.jsx
+            └── ResultPanel.jsx
 ```
 
 ---
 
 ## How to Run
 
-### 1 — Backend (FastAPI)
+### Backend
 
 ```bash
 cd backend
-
-# Create & activate virtual environment (optional but recommended)
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-
-# Install dependencies
+venv\Scripts\activate
 pip install -r requirements.txt
-
-# Start the server
 uvicorn main:app --reload --port 8000
 ```
 
-API will be live at **http://localhost:8000**
-Interactive docs at **http://localhost:8000/docs**
+Backend runs at: http://localhost:8000
 
----
-
-### 2 — Frontend (React)
+### Frontend
 
 ```bash
 cd frontend
-
 npm install
 npm run dev
 ```
 
-App will open at **http://localhost:5173**
+Frontend runs at: http://localhost:5173
 
 ---
 
 ## Where to Add the API Key
 
-Open `backend/main.py` and find:
+Open `backend/main.py` and find this line:
 
 ```python
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+REPLICATE_API_TOKEN = ""  # paste your r8_... token here
 ```
 
-You can either:
-- Set an environment variable: `export GEMINI_API_KEY=your_key_here`
-- Or paste the key directly: `GEMINI_API_KEY = "your_key_here"`
-
-Also uncomment `google-generativeai` in `requirements.txt` and re-install.
-
-> **Without a key** the app runs in **Mock mode** — it uses Pillow to overlay the clothing on the person image locally. No API calls are made.
+To get a free token:
+1. Go to replicate.com
+2. Sign up with GitHub
+3. Go to Account then API Tokens
+4. Copy your token and paste it above
 
 ---
 
-## How the System Works
+## How It Works
 
-```
-User uploads two images
-        │
-        ▼
-React frontend (port 5173)
-   — previews both images
-   — on "Try On" click: sends FormData to backend
-        │
-        ▼
-FastAPI backend (port 8000)  POST /tryon
-   — validates file types
-   — saves uploads temporarily
-   — if GEMINI_API_KEY set → calls Gemini Vision API
-   — else → runs Pillow mock compositor
-   — deletes temp files
-   — returns { result_image: <base64>, mime, mode }
-        │
-        ▼
-React frontend
-   — decodes base64
-   — displays result image
-   — offers Download button
-```
+1. User uploads a person image and a clothing image
+2. Frontend sends both images to the backend via POST /tryon
+3. Backend sends images to Replicate IDM-VTON model
+4. Model generates a realistic try-on result (30-40 seconds)
+5. Backend returns the result as base64 to the frontend
+6. Frontend displays the result image with a download option
+
+If the Replicate API is unavailable or the token is missing, the app automatically falls back to a Pillow-based image compositor locally.
 
 ---
 
-## API Reference
+## Accepted Image Formats
 
-### `POST /tryon`
-
-| Field          | Type   | Description             |
-|----------------|--------|-------------------------|
-| `person_image` | file   | Photo of the person     |
-| `cloth_image`  | file   | Photo of clothing item  |
-
-**Response:**
-```json
-{
-  "result_image": "<base64 string>",
-  "mime": "image/jpeg",
-  "mode": "mock"
-}
-```
+JPEG, JPG, PNG, WEBP
 
 ---
 
-## Notes
+## Requirements
 
-- Accepted image formats: JPEG, PNG, WEBP
-- Uploaded files are deleted from disk immediately after processing
-- CORS is pre-configured for `localhost:5173` and `localhost:3000`
+### Backend
+- Python 3.10 or higher
+- See requirements.txt for all packages
+
+### Frontend
+- Node.js 18 or higher
+- npm
